@@ -1,0 +1,10 @@
+# Unwanted files and directories
+docker/volumes
+
+# IDEs
+docker-compose.yml
+docker-compose.override.yml
+
+# Environment
+.env
+.env.testing
