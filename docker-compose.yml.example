@@ -1,0 +1,137 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:stable-alpine
+    build:
+      context: .
+      dockerfile: docker/nginx.dockerfile
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-nginx
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+    depends_on:
+      - php
+      - mysql
+      - mysql-test
+    healthcheck:
+      test: ["CMD", "service", "nginx", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  php:
+    image: php:${PHP_VERSION}
+    build:
+      context: .
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+        - XDEBUG_VERSION=${XDEBUG_VERSION}
+        - XDEBUG_START_WITH_REQUEST=${XDEBUG_START_WITH_REQUEST}
+        - XDEBUG_DISCOVER_CLIENT_HOST=${XDEBUG_DISCOVER_CLIENT_HOST}
+        - XDEBUG_MODE=${XDEBUG_MODE}
+        - XDEBUG_IDEKEY=${XDEBUG_IDEKEY}
+        - XDEBUG_CLIENT_HOST=${XDEBUG_CLIENT_HOST}
+        - XDEBUG_CLIENT_PORT=${XDEBUG_CLIENT_PORT}
+      dockerfile: docker/php.dockerfile
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-php
+    ports:
+      - "${PHP_PORT}:9000"
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+
+  mysql:
+    image: mysql:${DB_VERSION}
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-mysql
+    restart: unless-stopped
+    tty: true
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - ./docker/volumes/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    
+  mysql-test:
+    image: mysql:${DB_TEST_VERSION}
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-mysql-test
+    restart: unless-stopped
+    tty: true
+    environment:
+      MYSQL_DATABASE: "${DB_TEST_DATABASE}"
+      MYSQL_USER: "${DB_TEST_USER}"
+      MYSQL_PASSWORD: "${DB_TEST_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${DB_TEST_ROOT_PASSWORD}"
+    ports:
+      - "${DB_TEST_PORT}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-redis
+    tty: true
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - ./docker/volumes/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  composer:
+    image: composer:${COMPOSER_VERSION}
+    build:
+      context: .
+      args:
+        - COMPOSER_VERSION=${COMPOSER_VERSION}
+      dockerfile: docker/composer.dockerfile
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-composer
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+    depends_on:
+      - php
+    working_dir: /var/www/html
+    entrypoint: ["composer"]
+
+  npm:
+    image: node:${NODE_VERSION}
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-npm
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ["npm"]
+
+  artisan:
+    image: artisan:${LARAVEL_VERSION}
+    build:
+      context: .
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+      dockerfile: docker/artisan.dockerfile
+    container_name: ${DOCKER_CONTAINER_BASE_NAME}-artisan
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+    depends_on:
+      - mysql
+      - mysql-test
+    working_dir: /var/www/html
+    entrypoint: ["php", "/var/www/html/artisan"]
+
+networks:
+  default:
+    name: ${DOCKER_CONTAINER_BASE_NAME}-default-network

@@ -1,0 +1,5 @@
+ARG COMPOSER_VERSION
+
+FROM composer:${COMPOSER_VERSION}
+
+WORKDIR /var/www/html
