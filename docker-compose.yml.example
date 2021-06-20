@@ -91,14 +91,15 @@ services:
     image: composer
     build:
       context: .
+      args:
+        - COMPOSER_VERSION=${COMPOSER_VERSION}
       dockerfile: docker/composer.dockerfile
     container_name: ${DOCKER_CONTAINER_BASE_NAME}-composer
     volumes:
       - /path/to/project:/var/www/html
-    working_dir: /var/www/html
     depends_on:
       - php
-    user: laradock
+    working_dir: /var/www/html
     entrypoint: ["composer", "--ignore-platform-reqs"]
 
   npm:
@@ -120,5 +121,4 @@ services:
     depends_on:
       - mysql
     working_dir: /var/www/html
-    user: laradock
     entrypoint: ["php", "/var/www/html/artisan"]
